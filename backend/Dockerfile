@@ -1,25 +1,26 @@
 # Base stage for production
 FROM python:3.11.4-slim-bullseye AS prod
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y curl && apt-get clean
+
 # Install Poetry
 RUN pip install poetry==1.8.2
 
-# Configure Poetry
+# Configure Poetry to not create virtual environments
 RUN poetry config virtualenvs.create false
-RUN poetry config cache-dir /tmp/poetry_cache
 
-# Copy the project requirements
-COPY pyproject.toml poetry.lock /app/src/
+# Set the working directory
 WORKDIR /app/src
 
+# Copy only the project requirement files to install dependencies
+COPY pyproject.toml poetry.lock ./
+
 # Install the project dependencies
-RUN --mount=type=cache,target=/tmp/poetry_cache poetry install --only main
+RUN poetry install --only main
 
 # Copy the actual application code
-COPY . /app/src/
-
-# Reinstall dependencies if necessary
-RUN --mount=type=cache,target=/tmp/poetry_cache poetry install --only main
+COPY . .
 
 # Expose the application port
 EXPOSE 8000
@@ -31,4 +32,4 @@ CMD ["/usr/local/bin/python", "-m", "backend"]
 FROM prod AS dev
 
 # Install all dependencies (including dev)
-RUN --mount=type=cache,target=/tmp/poetry_cache poetry install
+RUN poetry install
